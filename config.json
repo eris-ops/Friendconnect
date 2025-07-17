@@ -1,0 +1,31 @@
+{
+  "server": "play.hiddenkingdom.nl",
+  "port": 19132,
+  "gamertag": "FriendBot2024",
+  "version": "1.20.81",
+  "autoReconnect": true,
+  "maxReconnectAttempts": 10,
+  "reconnectDelay": 5000,
+  "logFriendRequests": true,
+  "logStats": true,
+  "statsInterval": 300,
+  "pingServer": true,
+  "debugMode": false,
+  "logPackets": false,
+  "description": "FriendConnect Bot Configuration",
+  "_comments": {
+    "server": "The Minecraft Bedrock server hostname or IP",
+    "port": "The server port (usually 19132 for Bedrock)",
+    "gamertag": "The display name for your bot (change this to your desired bot name)",
+    "version": "Minecraft version to emulate",
+    "autoReconnect": "Whether to automatically reconnect on disconnect",
+    "maxReconnectAttempts": "Maximum number of reconnection attempts before giving up",
+    "reconnectDelay": "Base delay in milliseconds between reconnection attempts",
+    "logFriendRequests": "Log when friend requests are received and accepted",
+    "logStats": "Periodically log bot statistics",
+    "statsInterval": "Interval in seconds for statistics logging",
+    "pingServer": "Whether to ping server for info before connecting",
+    "debugMode": "Enable debug mode for more verbose logging",
+    "logPackets": "Log all received packets (very verbose, only for debugging)"
+  }
+}
