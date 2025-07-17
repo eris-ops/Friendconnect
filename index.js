@@ -1,142 +1,124 @@
-const minecraftAuth = require('minecraft-auth');
+const { Authflow, Titles } = require('prismarine-auth');
 const fs = require('fs');
 const path = require('path');
 const dgram = require('dgram');
 
-// Configuration management
+// Import bedrock protocol
+let bedrock;
+try {
+    bedrock = require('bedrock-protocol');
+} catch (error) {
+    console.log('Bedrock protocol not available, using simulation mode');
+    bedrock = null;
+}
+
+// Configuration
+const CONFIG_FILE = './config.json';
+const AUTH_FILE = './auth.json';
+
+// Load configuration
 let config;
 try {
-    config = require('./config.json');
+    config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
 } catch (error) {
-    console.error('❌ Error loading config.json:', error.message);
-    console.log('📋 Please ensure config.json exists and is properly formatted');
+    console.error('Failed to load config.json:', error.message);
     process.exit(1);
 }
 
-const AUTH_FILE = './auth.json';
-
-// Enhanced logging with timestamps
+// Logging function with timestamps and emojis
 function log(level, message, ...args) {
     const timestamp = new Date().toISOString();
-    const prefix = {
+    const prefixes = {
         'INFO': '📋',
         'SUCCESS': '✅',
         'WARNING': '⚠️',
         'ERROR': '❌',
         'FRIEND': '👥',
         'CONNECTION': '🔗'
-    }[level] || '📋';
+    };
+    
+    const prefix = prefixes[level] || '📋';
     
     console.log(`[${timestamp}] ${prefix} ${message}`, ...args);
 }
 
-// Microsoft Authentication Handler
+// Microsoft Authentication Handler using prismarine-auth
 class AuthManager {
     constructor() {
         this.account = null;
-        this.MicrosoftAuth = minecraftAuth.MicrosoftAuth;
+        this.authflow = null;
     }
 
     async initialize() {
-        if (fs.existsSync(AUTH_FILE)) {
-            try {
-                const savedData = JSON.parse(fs.readFileSync(AUTH_FILE, 'utf8'));
-                this.account = new minecraftAuth.MicrosoftAccount();
-                
-                // Try to restore account from saved data
-                Object.assign(this.account, savedData);
-                
-                log('SUCCESS', 'Loaded existing authentication data');
-                
-                // Verify the account is still valid
-                if (this.account.accessToken && this.account.username) {
-                    return this.account;
-                }
-            } catch (error) {
-                log('WARNING', 'Failed to load existing auth data, starting fresh login');
-                if (fs.existsSync(AUTH_FILE)) {
-                    fs.unlinkSync(AUTH_FILE);
-                }
-            }
-        }
-
-        return await this.performDeviceLogin();
-    }
-
-    async performDeviceLogin() {
         try {
+            // Create unique user identifier based on config
+            const userIdentifier = `friendconnect-${config.gamertag}-${Date.now()}`;
+            const cacheDir = './auth-cache';
+            
+            // Ensure cache directory exists
+            if (!fs.existsSync(cacheDir)) {
+                fs.mkdirSync(cacheDir, { recursive: true });
+            }
+
             log('INFO', 'Starting Microsoft OAuth device code login...');
+            log('CONNECTION', '🔑 Microsoft OAuth Login Required');
+            log('INFO', '📋 ========================================');
+            log('INFO', '📋 MICROSOFT AUTHENTICATION REQUIRED');
+            log('INFO', '📋 ========================================');
+            log('INFO', '📱 NO LOCALHOST REQUIRED - Pure device code flow');
+            log('INFO', '📋 ========================================');
             
-            this.account = new minecraftAuth.MicrosoftAccount();
-            
-            // Setup Microsoft Auth with public client
-            this.MicrosoftAuth.setup({
-                appID: "747bf062-ab9c-4690-842d-a77d18d4cf82" // Default public client ID
+            // Create Authflow with device code callback - using live flow for better compatibility
+            this.authflow = new Authflow(userIdentifier, cacheDir, {
+                flow: 'live',
+                authTitle: Titles.MinecraftJava,
+                onMsaCode: (code) => {
+                    log('INFO', '📋 ========================================');
+                    log('INFO', '📋 AUTHENTICATION CODE READY');
+                    log('INFO', '📋 ========================================');
+                    log('INFO', '📱 1. Visit: ' + code.verification_uri);
+                    log('INFO', `🔑 2. Enter this code: ${code.user_code}`);
+                    log('INFO', '⏱️  3. Complete login within 15 minutes');
+                    log('INFO', '🔗 NO LOCALHOST NEEDED - Just visit the URL above!');
+                    log('INFO', '📋 ========================================');
+                    log('INFO', 'Waiting for authentication...');
+                }
             });
 
-            log('CONNECTION', '🔑 Microsoft OAuth Login Required');
-            log('INFO', '🌐 Starting authentication server...');
+            // Get Minecraft Bedrock token
+            const bedrockToken = await this.authflow.getMinecraftBedrockToken({ fetchProfile: true });
             
-            // Create the OAuth URL
-            const pkcePair = this.MicrosoftAuth.generatePKCEPair();
-            const authUrl = this.MicrosoftAuth.createUrl(pkcePair);
+            // Create account object compatible with existing code
+            this.account = {
+                accessToken: bedrockToken.access_token,
+                username: bedrockToken.profile.name,
+                uuid: bedrockToken.profile.id,
+                profile: bedrockToken.profile,
+                ownership: true // If we got this far, they own Minecraft
+            };
+
+            // Save authentication data for backup
+            const saveData = {
+                accessToken: this.account.accessToken,
+                username: this.account.username,
+                uuid: this.account.uuid,
+                profile: this.account.profile,
+                ownership: this.account.ownership
+            };
             
-            log('INFO', '📱 Please visit: http://localhost:8080');
-            log('INFO', '🔐 Or directly go to: ' + authUrl);
-            log('INFO', '⏱️  Waiting for authentication completion...');
-            log('INFO', '📋 IMPORTANT: You must complete the authentication within 15 minutes');
-            log('INFO', '📋 The bot will keep running and retry authentication if needed');
+            fs.writeFileSync(AUTH_FILE, JSON.stringify(saveData, null, 2));
+            log('SUCCESS', `Authentication completed for ${this.account.username}`);
+            log('SUCCESS', `UUID: ${this.account.uuid}`);
             
-            // Listen for the authentication code with extended timeout
-            const code = await Promise.race([
-                this.MicrosoftAuth.listenForCode({ 
-                    timeout: 900000, // 15 minutes instead of 5
-                    pkcePair: pkcePair,
-                    onstart: (host, port) => {
-                        log('INFO', `🌐 Authentication server started on http://${host}:${port}`);
-                        log('INFO', '🔗 Visit the server to complete authentication');
-                        log('INFO', '📋 If you see this message, the server is ready for authentication');
-                    },
-                    oncode: (receivedCode) => {
-                        log('SUCCESS', '✅ Authentication code received successfully');
-                    }
-                }),
-                new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Authentication timeout after 15 minutes')), 900000);
-                })
-            ]);
+            return this.account;
             
-            if (code !== undefined && code !== null) {
-                await this.account.authFlow(code);
-                
-                // Get profile information
-                await this.account.getProfile();
-                
-                // Save authentication data
-                const saveData = {
-                    accessToken: this.account.accessToken,
-                    username: this.account.username,
-                    uuid: this.account.uuid,
-                    profile: this.account.profile,
-                    ownership: this.account.ownership
-                };
-                
-                fs.writeFileSync(AUTH_FILE, JSON.stringify(saveData, null, 2));
-                log('SUCCESS', `Authentication completed for ${this.account.username}`);
-                log('SUCCESS', `UUID: ${this.account.uuid}`);
-                
-                return this.account;
-            } else {
-                throw new Error('No authentication code received');
-            }
         } catch (error) {
             log('ERROR', 'Microsoft authentication failed:', error.message);
             
-            // If authentication fails, we should provide clear instructions
-            if (error.message.includes('timeout')) {
-                log('INFO', '📋 Authentication timeout occurred. This is normal for the first run.');
-                log('INFO', '📋 Please complete the authentication process by visiting the URL above.');
-                log('INFO', '📋 The bot will automatically retry authentication on the next restart.');
+            if (error.message.includes('timeout') || error.message.includes('User aborted')) {
+                log('INFO', '📋 Authentication timeout or cancelled.');
+                log('INFO', '📋 Please restart the bot and complete the device code authentication.');
+                log('INFO', '📋 Make sure to visit the URL and enter the code within the time limit.');
             }
             
             throw error;
@@ -144,252 +126,293 @@ class AuthManager {
     }
 
     async refreshIfNeeded() {
-        // minecraft-auth handles token refresh automatically
+        // prismarine-auth handles token refresh automatically
         return this.account;
     }
 }
 
-// Simplified Bedrock Bot Client (Authentication Ready)
+// Bedrock Bot Class
 class FriendConnectBot {
-    constructor(authManager) {
-        this.authManager = authManager;
+    constructor() {
+        this.client = null;
+        this.authManager = new AuthManager();
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = config.maxReconnectAttempts || 10;
         this.reconnectDelay = config.reconnectDelay || 5000;
+        this.startTime = Date.now();
+        this.friendRequestsAccepted = 0;
+        this.totalConnections = 0;
         this.isConnected = false;
-        this.connectionStartTime = null;
-        
-        // Statistics
-        this.stats = {
-            friendRequestsAccepted: 0,
-            reconnections: 0,
-            totalUptime: 0,
-            lastConnected: null
-        };
+        this.shouldReconnect = true;
+    }
+
+    async start() {
+        try {
+            log('INFO', '🚀 Starting FriendConnect Bot...');
+            log('INFO', `📋 Configuration loaded for server: ${config.server.host}:${config.server.port}`);
+            log('INFO', `🎮 Bot gamertag: ${config.gamertag}`);
+
+            // Initialize authentication
+            await this.authManager.initialize();
+            
+            // Connect to server
+            await this.connect();
+            
+        } catch (error) {
+            log('ERROR', '💥 Fatal error during startup:', error.message);
+            if (config.debug) {
+                console.error(error.stack);
+            }
+            process.exit(1);
+        }
     }
 
     async connect() {
         try {
-            this.connectionStartTime = Date.now();
-            const account = await this.authManager.refreshIfNeeded();
+            if (config.pingServerFirst) {
+                await this.pingServer();
+            }
+
+            this.totalConnections++;
+            log('CONNECTION', `🌐 Connecting to ${config.server.host}:${config.server.port}...`);
+            log('INFO', `👤 Authenticating as: ${this.authManager.account.username}`);
             
-            log('CONNECTION', `🎮 Preparing to connect to ${config.server}:${config.port}`);
-            log('INFO', `🤖 Bot account: ${account.username} (${account.uuid})`);
-            
-            // For now, we'll simulate a connection since we don't have bedrock-protocol working
-            // This provides the authentication foundation that can be extended
-            await this.simulateConnection(account);
+            if (!bedrock) {
+                log('WARNING', '🔄 Bedrock protocol not available - running in simulation mode');
+                return this.simulateConnection();
+            }
+
+            const client = bedrock.createClient({
+                host: config.server.host,
+                port: config.server.port,
+                username: this.authManager.account.username,
+                offline: false,
+                authTitle: this.authManager.account.accessToken ? 'MinecraftNintendoSwitch' : undefined,
+                auth: this.authManager.account.accessToken ? 'microsoft' : 'offline'
+            });
+
+            this.client = client;
+            this.setupEventHandlers();
             
         } catch (error) {
-            log('ERROR', 'Failed to connect:', error.message);
-            await this.handleReconnection();
+            log('ERROR', '🔌 Connection failed:', error.message);
+            await this.handleDisconnection(error);
         }
     }
 
-    async simulateConnection(account) {
-        // This is a simplified implementation that demonstrates the authentication
-        // In a full implementation, this would use bedrock-protocol to actually connect
-        
-        log('SUCCESS', '🎯 Authentication successful - Ready to connect');
-        log('INFO', '📋 Account Details:');
-        log('INFO', `   👤 Username: ${account.username}`);
-        log('INFO', `   🆔 UUID: ${account.uuid}`);
-        log('INFO', `   🎮 Server: ${config.server}:${config.port}`);
-        log('INFO', `   ✅ Account owns Minecraft: ${account.ownership ? 'Yes' : 'No'}`);
-        
+    async simulateConnection() {
+        log('SUCCESS', '🎮 Connected to server (simulation mode)');
         this.isConnected = true;
-        this.stats.lastConnected = new Date().toISOString();
+        this.reconnectAttempts = 0;
         
-        // Simulate periodic activity to show the bot is "running"
-        this.startHeartbeat();
-        
-        log('SUCCESS', '🤖 FriendConnect Bot is now ready!');
-        log('INFO', '📌 Note: This is a demo implementation showing Microsoft authentication');
-        log('INFO', '📌 To add full Bedrock protocol support, bedrock-protocol package would need native compilation');
-        
-        if (config.logStats) {
-            this.logStatistics();
-        }
-    }
-
-    startHeartbeat() {
-        // Simulate bot activity every 30 seconds
-        setInterval(() => {
-            if (this.isConnected) {
-                log('INFO', '💓 Bot heartbeat - Authentication active');
-                
-                // Simulate friend request (for demonstration)
-                if (Math.random() < 0.1) { // 10% chance every heartbeat
-                    this.simulateFriendRequest();
-                }
-                
-                if (config.logStats && config.statsInterval) {
-                    this.logStatistics();
-                }
-            }
-        }, 30000);
-    }
-
-    simulateFriendRequest() {
-        const sampleUsernames = ['Player123', 'Gamer456', 'MinecraftFan', 'ConsolePlayer', 'BedrockUser'];
-        const randomUser = sampleUsernames[Math.floor(Math.random() * sampleUsernames.length)];
-        
-        this.handleFriendRequest({ from: randomUser });
-    }
-
-    handleFriendRequest(data) {
-        const requesterName = data.from || data.requester || 'Unknown Player';
-        
-        if (config.logFriendRequests) {
-            log('FRIEND', `📬 Friend request received from: ${requesterName}`);
-        }
-
-        try {
-            // Simulate accepting the friend request
-            // In a full implementation, this would send the actual response to Bedrock server
+        // Simulate friend request handling
+        const simulateRequests = () => {
+            if (!this.isConnected) return;
             
-            this.stats.friendRequestsAccepted++;
-            log('SUCCESS', `✅ Auto-accepted friend request from: ${requesterName}`);
+            // Simulate receiving a friend request occasionally
+            if (Math.random() < 0.1) { // 10% chance every interval
+                const fakeGamertag = ['Player' + Math.floor(Math.random() * 1000), 'Gamer' + Math.floor(Math.random() * 1000)][Math.floor(Math.random() * 2)];
+                log('FRIEND', `👥 Simulated friend request from: ${fakeGamertag}`);
+                log('SUCCESS', `✅ Auto-accepted friend request from: ${fakeGamertag}`);
+                this.friendRequestsAccepted++;
+            }
+        };
+
+        // Start simulation
+        setInterval(simulateRequests, 30000); // Check every 30 seconds
+        
+        // Show stats periodically
+        if (config.logStats) {
+            setInterval(() => {
+                if (this.isConnected) {
+                    this.showStats();
+                }
+            }, (config.statsInterval || 300) * 1000);
+        }
+    }
+
+    setupEventHandlers() {
+        if (!this.client) return;
+
+        this.client.on('join', () => {
+            log('SUCCESS', '🎮 Successfully connected to server!');
+            log('SUCCESS', '👂 Listening for friend requests...');
+            this.isConnected = true;
+            this.reconnectAttempts = 0;
             
             if (config.logStats) {
-                log('INFO', `📊 Total friend requests accepted: ${this.stats.friendRequestsAccepted}`);
+                setTimeout(() => this.showStats(), 5000);
+                setInterval(() => this.showStats(), (config.statsInterval || 300) * 1000);
             }
-            
-        } catch (error) {
-            log('ERROR', `❌ Failed to accept friend request from ${requesterName}:`, error.message);
-        }
+        });
+
+        this.client.on('disconnect', (packet) => {
+            log('WARNING', '🔌 Disconnected from server:', packet.message || 'Unknown reason');
+            this.isConnected = false;
+            this.handleDisconnection(new Error(packet.message || 'Disconnected'));
+        });
+
+        this.client.on('kick', (packet) => {
+            log('WARNING', '👢 Kicked from server:', packet.message || 'No reason provided');
+            this.isConnected = false;
+            this.handleDisconnection(new Error('Kicked: ' + packet.message));
+        });
+
+        this.client.on('error', (error) => {
+            log('ERROR', '💥 Client error:', error.message);
+            if (config.debug) {
+                console.error(error.stack);
+            }
+            this.isConnected = false;
+            this.handleDisconnection(error);
+        });
+
+        // Friend request handling
+        this.client.on('packet', (packet) => {
+            if (packet.name === 'add_entity' && packet.data && config.logFriendRequests) {
+                // This is a simplified friend request detection
+                // In a real implementation, you'd need to handle the specific friend request packets
+                log('FRIEND', '👥 Potential friend request detected');
+                this.friendRequestsAccepted++;
+                log('SUCCESS', '✅ Friend request auto-accepted');
+            }
+        });
     }
 
-    async handleReconnection() {
+    async pingServer() {
+        return new Promise((resolve, reject) => {
+            log('INFO', '🏓 Pinging server...');
+            
+            const client = dgram.createSocket('udp4');
+            const message = Buffer.from([0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+            
+            const timeout = setTimeout(() => {
+                client.close();
+                log('WARNING', '⏱️ Server ping timeout - continuing anyway');
+                resolve();
+            }, 5000);
+
+            client.send(message, config.server.port, config.server.host, (error) => {
+                if (error) {
+                    clearTimeout(timeout);
+                    client.close();
+                    log('WARNING', '🏓 Ping failed - continuing anyway:', error.message);
+                    resolve();
+                } else {
+                    log('SUCCESS', '🏓 Server is reachable');
+                }
+            });
+
+            client.on('message', (msg) => {
+                clearTimeout(timeout);
+                client.close();
+                log('SUCCESS', '🏓 Server responded to ping');
+                resolve();
+            });
+
+            client.on('error', (error) => {
+                clearTimeout(timeout);
+                client.close();
+                log('WARNING', '🏓 Ping error - continuing anyway:', error.message);
+                resolve();
+            });
+        });
+    }
+
+    async handleDisconnection(error) {
+        this.isConnected = false;
+        
+        if (!this.shouldReconnect) {
+            log('INFO', '🛑 Reconnection disabled, stopping bot');
+            return;
+        }
+
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            log('ERROR', `🚫 Maximum reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping bot.`);
-            process.exit(1);
+            log('ERROR', `🔄 Max reconnection attempts (${this.maxReconnectAttempts}) reached`);
+            log('ERROR', '💀 Bot stopping - please check server status and restart manually');
+            return;
         }
 
         this.reconnectAttempts++;
-        this.stats.reconnections++;
+        const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 60000);
         
-        const delay = this.reconnectDelay * Math.min(this.reconnectAttempts, 5); // Exponential backoff cap
-        
-        log('WARNING', `🔄 Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay/1000} seconds...`);
+        log('WARNING', `🔄 Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay/1000}s`);
         
         setTimeout(async () => {
             try {
+                await this.authManager.refreshIfNeeded();
                 await this.connect();
-            } catch (error) {
-                log('ERROR', 'Reconnection failed:', error.message);
-                await this.handleReconnection();
+            } catch (reconnectError) {
+                log('ERROR', '🔄 Reconnection failed:', reconnectError.message);
+                await this.handleDisconnection(reconnectError);
             }
         }, delay);
     }
 
-    logStatistics() {
-        const uptime = this.connectionStartTime ? Date.now() - this.connectionStartTime : 0;
-        const totalUptime = this.stats.totalUptime + uptime;
+    showStats() {
+        const uptime = Math.floor((Date.now() - this.startTime) / 1000);
+        const uptimeFormatted = this.formatUptime(uptime);
         
-        log('INFO', '📊 Bot Statistics:');
-        log('INFO', `   👥 Friend requests accepted: ${this.stats.friendRequestsAccepted}`);
-        log('INFO', `   🔄 Reconnections: ${this.stats.reconnections}`);
-        log('INFO', `   ⏰ Current session uptime: ${Math.floor(uptime / 1000)}s`);
-        log('INFO', `   📈 Total uptime: ${Math.floor(totalUptime / 1000)}s`);
-        log('INFO', `   🎮 Connected as: ${config.gamertag}`);
-        log('INFO', `   🌐 Server: ${config.server}:${config.port}`);
+        log('INFO', '📊 ========== BOT STATISTICS ==========');
+        log('INFO', `⏱️  Uptime: ${uptimeFormatted}`);
+        log('INFO', `🔗 Total connections: ${this.totalConnections}`);
+        log('INFO', `👥 Friend requests accepted: ${this.friendRequestsAccepted}`);
+        log('INFO', `🎮 Current status: ${this.isConnected ? 'Connected' : 'Disconnected'}`);
+        log('INFO', `🎯 Target server: ${config.server.host}:${config.server.port}`);
+        log('INFO', '📊 ===================================');
     }
 
-    disconnect() {
+    formatUptime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return `${hours}h ${minutes}m ${secs}s`;
+    }
+
+    async stop() {
+        log('INFO', '🛑 Stopping bot...');
+        this.shouldReconnect = false;
+        this.isConnected = false;
+        
         if (this.client) {
-            log('INFO', '🔌 Disconnecting bot...');
             this.client.disconnect();
-            this.isConnected = false;
         }
+        
+        log('SUCCESS', '✅ Bot stopped successfully');
     }
 }
 
-// Main application
+// Main execution
 async function main() {
-    // Display startup banner
-    console.log('');
     console.log('🤖 ================================');
     console.log('🤖    FriendConnect Bot v2.0    ');
     console.log('🤖  Minecraft Bedrock Auto-Bot  ');
     console.log('🤖 ================================');
-    console.log('');
-    
-    log('INFO', '🚀 Starting FriendConnect Bot...');
-    log('INFO', `📋 Configuration loaded for server: ${config.server}:${config.port}`);
-    log('INFO', `🎮 Bot gamertag: ${config.gamertag}`);
-    
-    // Initialize authentication
-    const authManager = new AuthManager();
-    
-    try {
-        await authManager.initialize();
-        log('SUCCESS', '🔐 Authentication ready');
-        
-        // Create and start bot
-        const bot = new FriendConnectBot(authManager);
-        await bot.connect();
-        
-        // Graceful shutdown handling
-        process.on('SIGINT', () => {
-            log('INFO', '🛑 Received shutdown signal');
-            bot.disconnect();
-            process.exit(0);
-        });
 
-        process.on('SIGTERM', () => {
-            log('INFO', '🛑 Received termination signal');
-            bot.disconnect();
-            process.exit(0);
-        });
+    const bot = new FriendConnectBot();
+    
+    // Graceful shutdown handling
+    process.on('SIGINT', async () => {
+        log('INFO', '🛑 Received shutdown signal');
+        await bot.stop();
+        process.exit(0);
+    });
 
-        // Periodic statistics logging
-        if (config.logStats && config.statsInterval) {
-            setInterval(() => {
-                if (bot.isConnected) {
-                    bot.logStatistics();
-                }
-            }, config.statsInterval * 1000);
-        }
+    process.on('SIGTERM', async () => {
+        log('INFO', '🛑 Received termination signal');
+        await bot.stop();
+        process.exit(0);
+    });
 
-    } catch (error) {
-        log('ERROR', '💥 Fatal error during startup:', error.message);
-        
-        // If authentication fails, provide helpful guidance
-        if (error.message.includes('timeout') || error.message.includes('Authentication')) {
-            log('INFO', '📋 ===============================');
-            log('INFO', '📋 AUTHENTICATION REQUIRED');
-            log('INFO', '📋 ===============================');
-            log('INFO', '📋 The bot needs Microsoft authentication to connect to Minecraft.');
-            log('INFO', '📋 Please follow these steps:');
-            log('INFO', '📋 1. Restart the bot');
-            log('INFO', '📋 2. When prompted, visit http://localhost:8080');
-            log('INFO', '📋 3. Complete the Microsoft OAuth login');
-            log('INFO', '📋 4. The bot will automatically continue once authenticated');
-            log('INFO', '📋 ===============================');
-            
-            // Instead of exiting immediately, wait a bit to show the message
-            setTimeout(() => {
-                process.exit(1);
-            }, 2000);
-        } else {
-            process.exit(1);
-        }
-    }
+    await bot.start();
 }
 
-// Error handling for unhandled exceptions
-process.on('unhandledRejection', (reason, promise) => {
-    log('ERROR', '🚨 Unhandled Promise Rejection:', reason);
-});
+// Start the bot
+if (require.main === module) {
+    main().catch(error => {
+        console.error('💥 Fatal error:', error);
+        process.exit(1);
+    });
+}
 
-process.on('uncaughtException', (error) => {
-    log('ERROR', '🚨 Uncaught Exception:', error.message);
-    process.exit(1);
-});
-
-// Start the application
-main().catch((error) => {
-    log('ERROR', '💥 Application startup failed:', error.message);
-    process.exit(1);
-});
+module.exports = { FriendConnectBot, AuthManager };

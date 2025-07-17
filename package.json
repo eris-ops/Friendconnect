@@ -8,7 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "minecraft-auth": "^2.0.10",
+    "prismarine-auth": "^2.7.0",
     "bedrock-protocol": "^3.47.0"
   },
   "engines": {
