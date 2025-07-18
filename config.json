@@ -1,0 +1,63 @@
+
+{
+  "_comment": "FriendConnect Bot v3.1 Configuration",
+  "_version": "3.1.0",
+
+  "demoMode": false,
+
+  "servers": [
+    {
+      "id": "hidden-kingdom",
+      "server": "play.hiddenkingdom.nl",
+      "port": 19132,
+      "hostName": "Hidden Kingdom Server",
+      "worldName": "Join via Friends Tab - Hidden Kingdom",
+      "version": "1.21.51",
+      "protocol": 685,
+      "maxPlayers": 40,
+      "accounts": []
+    }
+  ],
+
+  "session": {
+    "autoReconnect": true,
+    "maxReconnectAttempts": 10,
+    "reconnectDelay": 5000,
+    "heartbeatInterval": 60000,
+    "autoRecover": true
+  },
+
+  "auth": {
+    "tokenPath": "./auth/",
+    "maxRetries": 5,
+    "retryDelay": 3000,
+    "preferredMethod": "android",
+    "mobileOptimized": true
+  },
+
+  "friends": {
+    "maxConcurrentRequests": 5,
+    "requestDelay": 1000,
+    "autoAcceptFriends": true
+  },
+
+  "monitoring": {
+    "checkInterval": 60000,
+    "healthThreshold": 0.8,
+    "criticalThreshold": 0.3,
+    "maxFailures": 3,
+    "restartOnCriticalFailure": false,
+    "maxInactivityTime": 300000,
+    "statsInterval": 300000
+  },
+
+  "global": {
+    "continueOnServerFailure": false
+  },
+
+  "debugging": {
+    "enableStackTrace": true,
+    "enableDebugMode": false,
+    "logLevel": "info"
+  }
+}

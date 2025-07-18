@@ -1,0 +1,160 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2025-01-18T12:00:00+00:00",
+    "name": "FriendConnect Bot v3.1",
+    "author": "friendconnect@community.dev",
+    "description": "Enhanced Node.js Minecraft Bedrock bot with multi-server support that automatically manages Xbox Live sessions for console player discovery. Features advanced health monitoring, session recovery, and comprehensive friend management.",
+    "features": [
+        "Multi-server support",
+        "Advanced health monitoring", 
+        "Automatic session recovery",
+        "Smart friend management",
+        "Comprehensive logging"
+    ],
+    "docker_images": {
+        "Node.js 18": "ghcr.io/parkervcp/yolks:nodejs_18",
+        "Node.js 20": "ghcr.io/parkervcp/yolks:nodejs_20",
+        "Node.js 21": "ghcr.io/parkervcp/yolks:nodejs_21"
+    },
+    "file_denylist": [],
+    "startup": "npm start",
+    "config": {
+        "files": "{\r\n    \"config.json\": {\r\n        \"parser\": \"json\",\r\n        \"find\": {\r\n            \"servers[0].server\": \"{{server.build.env.SERVER}}\",\r\n            \"servers[0].port\": \"{{server.build.env.PORT}}\",\r\n            \"servers[0].hostName\": \"{{server.build.env.HOST_NAME}}\",\r\n            \"servers[0].worldName\": \"{{server.build.env.WORLD_NAME}}\",\r\n            \"servers[0].accounts\": [\"{{server.build.env.XBOX_ACCOUNT}}\"]\r\n        }\r\n    }\r\n}",
+        "startup": "{\r\n    \"done\": [\r\n        \"🎉 Enhanced FriendConnect Bot is now active!\",\r\n        \"🤖 FriendConnect Bot is now ready!\"\r\n    ]\r\n}",
+        "logs": "{}",
+        "stop": "^C"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\r\n# FriendConnect Bot v3.1 Enhanced Installation Script\r\n#\r\n# Server Files: /mnt/server\r\ncd /mnt/server\r\n\r\n# Update system packages\r\napt update\r\napt install -y git curl jq file unzip make gcc g++ python3 python3-dev libtool cmake\r\n\r\n# Download FriendConnect Bot\r\necho \"📥 Downloading FriendConnect Bot v3.1...\"\r\nif [ ! -z \"${GITHUB_USER}\" ] && [ ! -z \"${GITHUB_REPO}\" ]; then\r\n    DOWNLOAD_URL=\"https://github.com/${GITHUB_USER}/${GITHUB_REPO}/archive/refs/heads/main.zip\"\r\nelse\r\n    DOWNLOAD_URL=\"https://github.com/eris-ops/Friendconnect/archive/refs/heads/main.zip\"\r\nfi\r\n\r\ncurl -L \"${DOWNLOAD_URL}\" -o friendconnect.zip\r\nunzip -q friendconnect.zip\r\ncp -r friendconnect-bot-main/* .\r\nrm -rf friendconnect-bot-main friendconnect.zip\r\n\r\n# Create package.json if not exists or use provided one\r\nif [ ! -f package.json ]; then\r\n    echo \"📦 Creating package.json...\"\r\n    if [ -f package.json.friendconnect ]; then\r\n        cp package.json.friendconnect package.json\r\n        echo \"📦 Using provided package.json.friendconnect\"\r\n    else\r\n        cat > package.json << 'EOF'\r\n{\r\n  \"name\": \"friendconnect-bot\",\r\n  \"version\": \"3.1.0\",\r\n  \"description\": \"Enhanced Node.js Minecraft Bedrock bot with multi-server support and Xbox Live session management\",\r\n  \"main\": \"index-friendconnect.js\",\r\n  \"scripts\": {\r\n    \"start\": \"node index-friendconnect.js\",\r\n    \"dev\": \"node index-friendconnect.js\",\r\n    \"health\": \"node -e \\\"console.log('Health check endpoint not implemented yet')\\\"\"\r\n  },\r\n  \"keywords\": [\r\n    \"minecraft\",\r\n    \"bedrock\",\r\n    \"bot\",\r\n    \"xbox-live\",\r\n    \"friendconnect\",\r\n    \"multiplayer\",\r\n    \"session\",\r\n    \"prismarine\",\r\n    \"pterodactyl\",\r\n    \"multi-server\"\r\n  ],\r\n  \"author\": \"FriendConnect Bot Contributors\",\r\n  \"license\": \"MIT\",\r\n  \"engines\": {\r\n    \"node\": \">=18.0.0\"\r\n  },\r\n  \"dependencies\": {\r\n    \"node-fetch\": \"^2.7.0\",\r\n    \"prismarine-auth\": \"^2.7.0\"\r\n  }\r\n}\r\nEOF\r\n    fi\r\nfi\r\n\r\n# Install Node.js dependencies\r\necho \"📦 Installing dependencies...\"\r\nnpm install --only=production\r\n\r\n# Create configuration from template\r\necho \"⚙️ Setting up configuration...\"\r\nif [ ! -f config.json ]; then\r\n    if [ -f config.json.example ]; then\r\n        cp config.json.example config.json\r\n    else\r\n        echo \"📝 Creating default configuration...\"\r\n        cat > config.json << 'EOF'\r\n{\r\n  \"_comment\": \"FriendConnect Bot v3.1 Configuration\",\r\n  \"demoMode\": false,\r\n  \"servers\": [\r\n    {\r\n      \"id\": \"main-server\",\r\n      \"server\": \"play.example.com\",\r\n      \"port\": 19132,\r\n      \"hostName\": \"My Minecraft Server\",\r\n      \"worldName\": \"Join via Friends Tab\",\r\n      \"accounts\": [\r\n        \"account@example.com\"\r\n      ]\r\n    }\r\n  ],\r\n  \"session\": {\r\n    \"autoReconnect\": true,\r\n    \"maxReconnectAttempts\": 10,\r\n    \"reconnectDelay\": 5000,\r\n    \"heartbeatInterval\": 60000,\r\n    \"autoRecover\": true\r\n  },\r\n  \"monitoring\": {\r\n    \"checkInterval\": 60000,\r\n    \"healthThreshold\": 0.8,\r\n    \"criticalThreshold\": 0.3,\r\n    \"maxFailures\": 3,\r\n    \"restartOnCriticalFailure\": false\r\n  }\r\n}\r\nEOF\r\n    fi\r\nfi\r\n\r\n# Create necessary directories\r\necho \"📁 Creating directories...\"\r\nmkdir -p auth logs\r\n\r\n# Set permissions\r\necho \"🔐 Setting permissions...\"\r\nchmod 755 *.js\r\nchmod 600 config.json\r\nchmod 700 auth/\r\n\r\n# Create startup verification\r\necho \"✅ Creating startup verification...\"\r\ncat > verify-installation.js << 'EOF'\r\n#!/usr/bin/env node\r\n\r\nimport fs from 'fs';\r\nimport { createRequire } from 'module';\r\nconst require = createRequire(import.meta.url);\r\n\r\nconsole.log('🔍 Verifying FriendConnect Bot installation...');\r\n\r\n// Check Node.js version\r\nconst nodeVersion = process.version;\r\nconst majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);\r\nif (majorVersion < 18) {\r\n    console.error(`❌ Node.js 18+ required, found ${nodeVersion}`);\r\n    process.exit(1);\r\n}\r\nconsole.log(`✅ Node.js version: ${nodeVersion}`);\r\n\r\n// Check dependencies\r\ntry {\r\n    require('node-fetch');\r\n    console.log('✅ node-fetch dependency found');\r\n} catch (error) {\r\n    console.error('❌ node-fetch dependency missing');\r\n    process.exit(1);\r\n}\r\n\r\ntry {\r\n    require('prismarine-auth');\r\n    console.log('✅ prismarine-auth dependency found');\r\n} catch (error) {\r\n    console.error('❌ prismarine-auth dependency missing');\r\n    process.exit(1);\r\n}\r\n\r\n// Check configuration\r\nif (fs.existsSync('config.json')) {\r\n    try {\r\n        const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));\r\n        console.log('✅ Configuration file found and valid');\r\n        if (config.servers && config.servers.length > 0) {\r\n            console.log(`✅ Found ${config.servers.length} server configuration(s)`);\r\n        }\r\n    } catch (error) {\r\n        console.error('❌ Configuration file invalid:', error.message);\r\n        process.exit(1);\r\n    }\r\n} else {\r\n    console.error('❌ Configuration file missing');\r\n    process.exit(1);\r\n}\r\n\r\n// Check main files\r\nconst requiredFiles = [\r\n    'index-friendconnect.js',\r\n    'multi-server-manager.js', \r\n    'session-manager.js',\r\n    'auth-manager.js',\r\n    'friend-manager.js',\r\n    'health-monitor.js',\r\n    'config-validator.js',\r\n    'logger.js'\r\n];\r\n\r\nfor (const file of requiredFiles) {\r\n    if (fs.existsSync(file)) {\r\n        console.log(`✅ ${file} found`);\r\n    } else {\r\n        console.error(`❌ ${file} missing`);\r\n        process.exit(1);\r\n    }\r\n}\r\n\r\nconsole.log('🎉 Installation verification completed successfully!');\r\nconsole.log('📋 Ready to start FriendConnect Bot');\r\nconsole.log('📋 Use \"npm start\" to start the bot');\r\nEOF\r\n\r\nchmod +x verify-installation.js\r\n\r\n# Run verification\r\necho \"🔍 Running installation verification...\"\r\nnode verify-installation.js\r\n\r\necho \"🎉 FriendConnect Bot v3.1 installation completed!\"\r\necho \"📋 Next steps:\"\r\necho \"   1. Configure your servers in config.json\"\r\necho \"   2. Add your Xbox Live account emails\"\r\necho \"   3. Set demoMode: true for testing\"\r\necho \"   4. Start the bot with 'npm start'\"\r\necho \"📖 For detailed setup instructions, see SETUP.md\"",
+            "container": "node:18-bullseye-slim",
+            "entrypoint": "bash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Server Hostname/IP",
+            "description": "The Minecraft Bedrock server hostname or IP address that players will connect to",
+            "env_variable": "SERVER",
+            "default_value": "play.example.com",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:255",
+            "field_type": "text"
+        },
+        {
+            "name": "Server Port",
+            "description": "The Minecraft Bedrock server port (usually 19132)",
+            "env_variable": "PORT",
+            "default_value": "19132",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|between:1,65535",
+            "field_type": "text"
+        },
+        {
+            "name": "Server Display Name",
+            "description": "The display name for your server shown in Xbox Live sessions",
+            "env_variable": "HOST_NAME",
+            "default_value": "My Minecraft Server",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:64",
+            "field_type": "text"
+        },
+        {
+            "name": "World Name",
+            "description": "The world name shown in the Friends tab (e.g., 'Join via Friends Tab - My Server')",
+            "env_variable": "WORLD_NAME",
+            "default_value": "Join via Friends Tab",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:64",
+            "field_type": "text"
+        },
+        {
+            "name": "Xbox Live Account",
+            "description": "Xbox Live account email that owns Minecraft (Bedrock or Java Edition)",
+            "env_variable": "XBOX_ACCOUNT",
+            "default_value": "account@example.com",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|email|max:255",
+            "field_type": "text"
+        },
+        {
+            "name": "Demo Mode",
+            "description": "Enable demo mode for testing without Microsoft authentication",
+            "env_variable": "DEMO_MODE",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Auto Reconnect",
+            "description": "Enable automatic reconnection on disconnection",
+            "env_variable": "AUTO_RECONNECT",
+            "default_value": "true",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Max Reconnect Attempts",
+            "description": "Maximum number of reconnection attempts before giving up",
+            "env_variable": "MAX_RECONNECT_ATTEMPTS",
+            "default_value": "10",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|between:1,50",
+            "field_type": "text"
+        },
+        {
+            "name": "Health Check Interval",
+            "description": "Health monitoring check interval in milliseconds",
+            "env_variable": "HEALTH_CHECK_INTERVAL",
+            "default_value": "60000",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|between:10000,600000",
+            "field_type": "text"
+        },
+        {
+            "name": "Log Level",
+            "description": "Logging level (error, warning, info, debug)",
+            "env_variable": "LOG_LEVEL",
+            "default_value": "info",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:error,warning,info,debug",
+            "field_type": "text"
+        },
+        {
+            "name": "GitHub User",
+            "description": "GitHub username for custom repository (optional)",
+            "env_variable": "GITHUB_USER",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": true,
+            "rules": "nullable|string|max:255",
+            "field_type": "text"
+        },
+        {
+            "name": "GitHub Repository",
+            "description": "GitHub repository name for custom repository (optional)",
+            "env_variable": "GITHUB_REPO",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": true,
+            "rules": "nullable|string|max:255",
+            "field_type": "text"
+        }
+    ]
+}
