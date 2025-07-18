@@ -1,0 +1,72 @@
+{
+  "_comment": "FriendConnect Bot v3.1 Configuration Template",
+  "_documentation": "For detailed setup instructions, see SETUP.md",
+  "_version": "3.1.0",
+
+  "demoMode": true,
+  "_demoMode_comment": "Set to true to test without Microsoft authentication - useful for testing configuration",
+
+  "servers": [
+    {
+      "id": "main-server",
+      "server": "play.example.com",
+      "port": 19132,
+      "hostName": "My Minecraft Server",
+      "worldName": "Join via Friends Tab - My Server",
+      "version": "1.21.51",
+      "protocol": 685,
+      "maxPlayers": 40,
+      "accounts": [
+        "account1@example.com",
+        "account2@example.com"
+      ]
+    }
+  ],
+  "_servers_comment": "You can configure multiple servers by adding more objects to this array. Each server can have different settings and accounts.",
+
+  "session": {
+    "autoReconnect": true,
+    "maxReconnectAttempts": 10,
+    "reconnectDelay": 5000,
+    "heartbeatInterval": 60000,
+    "autoRecover": true
+  },
+  "_session_comment": "Session management settings for Xbox Live sessions",
+
+  "auth": {
+    "tokenPath": "./auth/",
+    "maxRetries": 3,
+    "retryDelay": 5000
+  },
+  "_auth_comment": "Authentication settings for Xbox Live accounts",
+
+  "friends": {
+    "maxConcurrentRequests": 5,
+    "requestDelay": 1000,
+    "autoAcceptFriends": true
+  },
+  "_friends_comment": "Friend management settings for establishing cross-friendships",
+
+  "monitoring": {
+    "checkInterval": 60000,
+    "healthThreshold": 0.8,
+    "criticalThreshold": 0.3,
+    "maxFailures": 3,
+    "restartOnCriticalFailure": false,
+    "maxInactivityTime": 300000,
+    "statsInterval": 300000
+  },
+  "_monitoring_comment": "Health monitoring and alerting settings",
+
+  "global": {
+    "continueOnServerFailure": false
+  },
+  "_global_comment": "Global behavior settings",
+
+  "debugging": {
+    "enableStackTrace": false,
+    "enableDebugMode": false,
+    "logLevel": "info"
+  },
+  "_debugging_comment": "Debugging and logging configuration"
+}

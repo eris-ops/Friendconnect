@@ -1,0 +1,63 @@
+{
+  "name": "friendconnect-bot",
+  "version": "3.1.0",
+  "description": "A comprehensive Node.js Minecraft Bedrock bot that revolutionizes friend management and server interactions through Xbox Live Multiplayer Sessions with enhanced reliability and multi-server support.",
+  "main": "index-friendconnect.js",
+
+  "scripts": {
+    "start": "node index-friendconnect.js",
+    "dev": "node index-friendconnect.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .js"
+  },
+  "keywords": [
+    "minecraft",
+    "bedrock",
+    "bot",
+    "xbox-live",
+    "friendconnect",
+    "multiplayer",
+    "session",
+    "prismarine",
+    "pterodactyl",
+    "multi-server"
+  ],
+  "author": "FriendConnect Bot Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/friendconnect-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/friendconnect-bot/issues"
+  },
+  "homepage": "https://github.com/yourusername/friendconnect-bot#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0",
+    "prismarine-auth": "^2.7.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  },
+  "files": [
+    "index-friendconnect.js",
+    "multi-server-manager.js",
+    "session-manager.js",
+    "auth-manager.js",
+    "friend-manager.js",
+    "health-monitor.js",
+    "config-validator.js",
+    "logger.js",
+    "friendconnect-session.js",
+    "config.json.example",
+    "friendconnect-egg.json",
+    "README.md",
+    "SETUP.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "LICENSE"
+  ]
+}
