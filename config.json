@@ -2,31 +2,44 @@
   "server": "your-server.com",
   "port": 19132,
   "hostName": "Your Server Name",
-  "worldName": "Join via Friends Tab - Your MOTD",
+  "worldName": "Join via Friends Tab - Your Server",
   "version": "1.21.51",
   "protocol": 685,
   "maxPlayers": 40,
   "accounts": [
-    "account1@example.com",
-    "account2@example.com"
+    "example1@hotmail.com",
+    "example2@outlook.com"
   ],
+
+  "autoReconnect": true,
+  "maxReconnectAttempts": 10,
+  "reconnectDelay": 5000,
+  "logFriendRequests": true,
+  "logStats": true,
+  "statsInterval": 300,
+  "pingServer": true,
+  "debugMode": false,
+  "logPackets": false,
   "demoMode": false,
-  "description": "FriendConnect Xbox Live Session Configuration",
-  "_instructions": {
-    "setup": "1. Replace 'your-server.com' with your actual server IP",
-    "accounts": "2. Add Microsoft email addresses that own Minecraft",
-    "demo": "3. Set demoMode to true for testing without authentication",
-    "deployment": "4. For GitHub/Docker deployment, use environment variables instead"
-  },
-  "_environment_variables": {
-    "SERVER_IP": "Your Minecraft server IP address",
-    "SERVER_PORT": "19132",
-    "HOST_NAME": "Server name shown in Friends tab",
-    "WORLD_NAME": "Server description/MOTD",
-    "VERSION": "1.21.51",
-    "PROTOCOL": "685", 
-    "MAX_PLAYERS": "40",
-    "ACCOUNTS": "email1@example.com,email2@example.com",
-    "DEMO_MODE": "false"
+  "description": "FriendConnect Bot Configuration Template",
+  "_comments": {
+    "server": "The Minecraft Bedrock server hostname or IP",
+    "port": "The server port (usually 19132 for Bedrock)",
+    "hostName": "The display name for your server in Xbox Live",
+    "worldName": "The world name shown in Friends tab",
+    "version": "Minecraft version to emulate",
+    "protocol": "Protocol version number",
+    "maxPlayers": "Maximum players for the session",
+    "accounts": "Array of Xbox Live email addresses - each needs Minecraft ownership and Xbox Live access",
+    "autoReconnect": "Whether to automatically reconnect on disconnect",
+    "maxReconnectAttempts": "Maximum number of reconnection attempts before giving up",
+    "reconnectDelay": "Base delay in milliseconds between reconnection attempts",
+    "logFriendRequests": "Log when friend requests are received and accepted",
+    "logStats": "Periodically log bot statistics",
+    "statsInterval": "Interval in seconds for statistics logging",
+    "pingServer": "Whether to ping server for info before connecting",
+    "debugMode": "Enable debug mode for more verbose logging",
+    "logPackets": "Log all received packets (very verbose, only for debugging)",
+    "demoMode": "Enable demo mode to bypass Microsoft authentication for testing"
   }
 }
